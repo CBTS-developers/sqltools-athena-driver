@@ -178,21 +178,27 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
             const getIconName = (type) => {
                 switch(type.toLowerCase()) {
                     case 'string': 
-                        return 'symbol-text';
+                      return 'symbol-text';
+                    case 'varchar': 
+                      return 'symbol-text';
                     case 'number':
+                      return 'symbol-number';
                     case 'double':
+                      return 'symbol-number';
                     case 'int':
+                      return 'symbol-number';
                     case 'bigint':
-                        return 'symbol-number';
+                      return 'symbol-number';
                     case 'date':
+                      return 'clock';
                     case 'timestamp':
-                        return 'clock';
+                      return 'clock';
                     case 'boolean':
-                        return 'symbol-boolean';
+                      return 'symbol-boolean';
                     case 'binary':
-                        return 'symbol-binary';
+                      return 'symbol-binary';
                     default:
-                        return null
+                      return null
                 }
             };
             
