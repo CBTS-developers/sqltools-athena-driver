@@ -215,7 +215,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
               if (iconId) {
                 objectSettings['iconId'] = iconId;
               } else {
-                objectSettings['iconId'] = 'column';
+                objectSettings['iconName'] = 'column';
               }
             }
             
