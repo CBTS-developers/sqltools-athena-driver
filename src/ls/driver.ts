@@ -192,11 +192,11 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
                     case 'binary':
                         return 'symbol-binary';
                     default:
-                        return column.Name.toLowerCase() === 'id' ? 'pk' : 'column';
+                        return null
                 }
             };
-        
-            return {
+            
+            let objectSettings  = {
                 label: column.Name,
                 type: ContextValue.COLUMN,
                 dataType: column.Type,
@@ -205,9 +205,21 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
                 database: item.database,
                 childType: ContextValue.NO_CHILD,
                 isNullable: true,
-                iconName: getIconName(column.Type),
                 table: parent,
             }
+
+            if (column.Name.toLowerCase() === 'id') {
+                objectSettings['iconName'] = 'pk';
+            } else {
+              let iconId = getIconName(column.Type);
+              if (iconId) {
+                objectSettings['iconId'] = iconId;
+              } else {
+                objectSettings['iconId'] = 'column';
+              }
+            }
+            
+            return objectSettings;
         });
       
         return to_return;
