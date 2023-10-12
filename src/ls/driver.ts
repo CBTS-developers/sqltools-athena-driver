@@ -171,37 +171,29 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
           TableName: item.label
         }).promise();
 
-
         let to_return = [
-            ...tableMetadata.TableMetadata.Columns
-        ];
-
-        if (tableMetadata.TableMetadata.PartitionKeys) {
-            to_return = to_return.concat(tableMetadata.TableMetadata.PartitionKeys);
-        }
-        
-        to_return.map(column => {
+            ...tableMetadata.TableMetadata.Columns,
+            ...tableMetadata.TableMetadata.PartitionKeys,
+        ].map(column => {
             const getIconName = (type) => {
-              const loweredType = type.toLowerCase();
-              if (loweredType.startsWith('varchar') || loweredType === 'string') {
-                  return 'symbol-text';
-              }
-              if (loweredType.startsWith('int') || loweredType.startsWith('bigint') || ['number', 'double'].includes(loweredType)) {
-                  return 'symbol-number';
-              }
-              if (loweredType.startsWith('timestamp')) {
-                return 'clock';
-              }
-              switch(loweredType) {
-                  case 'date':
-                      return 'clock';
-                  case 'boolean':
-                      return 'symbol-boolean';
-                  case 'binary':
-                      return 'symbol-binary';
-                  default:
-                      return null;
-              }
+                switch(type.toLowerCase()) {
+                    case 'string': 
+                        return 'symbol-text';
+                    case 'number':
+                    case 'double':
+                    case 'int':
+                    case 'bigint':
+                        return 'symbol-number';
+                    case 'date':
+                    case 'timestamp':
+                        return 'clock';
+                    case 'boolean':
+                        return 'symbol-boolean';
+                    case 'binary':
+                        return 'symbol-binary';
+                    default:
+                        return null
+                }
             };
             
             let objectSettings  = {
@@ -220,10 +212,10 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
                 objectSettings['iconName'] = 'pk';
             } else {
               let iconId = getIconName(column.Type);
-              if (iconId !== null) {
+              if (iconId) {
                 objectSettings['iconId'] = iconId;
               } else {
-                objectSettings['iconName'] = 'column';
+                objectSettings['iconId'] = 'column';
               }
             }
             
