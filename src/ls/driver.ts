@@ -160,8 +160,8 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         ];
       case ContextValue.DATABASE:
         return <MConnectionExplorer.IChildItem[]>[
-          { label: 'Tables', type: ContextValue.RESOURCE_GROUP, iconId: 'folder', childType: ContextValue.TABLE },
-          { label: 'Views', type: ContextValue.RESOURCE_GROUP, iconId: 'folder', childType: ContextValue.VIEW },
+          { label: 'Tables', type: ContextValue.RESOURCE_GROUP, iconId: 'outline-view-icon', childType: ContextValue.TABLE },
+          { label: 'Views', type: ContextValue.RESOURCE_GROUP, iconId: 'outline-view-icon', childType: ContextValue.VIEW },
         ];
       case ContextValue.TABLE:
       case ContextValue.VIEW:
@@ -172,21 +172,44 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         }).promise();
 
         let to_return = [
-          ...tableMetadata.TableMetadata.Columns,
-          ...tableMetadata.TableMetadata.PartitionKeys,
-        ].map(column => ({
-          label: column.Name,
-          type: ContextValue.COLUMN,
-          dataType: column.Type,
-          detail: `${column.Type}${column.Comment ? ` - ${column.Comment}` : ''}`,
-          schema: item.schema,
-          database: item.database,
-          childType: ContextValue.NO_CHILD,
-          isNullable: true,
-          iconName: column.Name.toLowerCase() === 'id' ? 'pk' : 'column',
-          table: parent,
-        }));
-        console.log(to_return);
+            ...tableMetadata.TableMetadata.Columns,
+            ...tableMetadata.TableMetadata.PartitionKeys,
+        ].map(column => {
+            const getIconName = (type) => {
+                switch(type.toLowerCase()) {
+                    case 'string': 
+                        return 'symbol-text';
+                    case 'number':
+                    case 'double':
+                    case 'int':
+                    case 'bigint':
+                        return 'symbol-number';
+                    case 'date':
+                    case 'timestamp':
+                        return 'clock';
+                    case 'boolean':
+                        return 'symbol-boolean';
+                    case 'binary':
+                        return 'symbol-binary';
+                    default:
+                        return column.Name.toLowerCase() === 'id' ? 'pk' : 'column';
+                }
+            };
+        
+            return {
+                label: column.Name,
+                type: ContextValue.COLUMN,
+                dataType: column.Type,
+                detail: `${column.Type}${column.Comment ? ` - ${column.Comment}` : ''}`,
+                schema: item.schema,
+                database: item.database,
+                childType: ContextValue.NO_CHILD,
+                isNullable: true,
+                iconName: getIconName(column.Type),
+                table: parent,
+            }
+        });
+      
         return to_return;
       case ContextValue.RESOURCE_GROUP:
         return this.getChildrenForGroup({ item, parent });

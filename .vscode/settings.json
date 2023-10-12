@@ -9,4 +9,15 @@
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
     "typescript.tsc.autoDetect": "off",
     "debug.onTaskErrors": "debugAnyway",
+    "sqltools.connections": [
+        {
+            "workgroup": "primary",
+            "region": "us-east-1",
+            "connectionMethod": "Profile",
+            "previewLimit": 50,
+            "driver": "driver.athena",
+            "name": "Athena",
+            "profile": "default_analyst"
+        }
+    ],
 }
