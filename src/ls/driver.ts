@@ -2,7 +2,7 @@ import AbstractDriver from '@sqltools/base-driver';
 import { IConnectionDriver, MConnectionExplorer, NSDatabase, Arg0, ContextValue } from '@sqltools/types';
 import queries from './queries';
 import { v4 as generateId } from 'uuid';
-import { Athena, AWSError, Credentials, SharedIniFileCredentials } from 'aws-sdk';
+import { Athena, AWSError, Credentials, Glue, SharedIniFileCredentials } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { GetQueryResultsInput, GetQueryResultsOutput } from 'aws-sdk/clients/athena';
 
@@ -29,7 +29,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
   // }
 
   public async open() {
-    if (this.connection) {
+    if (this.connection) { 
       return this.connection;
     }
 
@@ -310,9 +310,77 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
    * This method is a helper for intellisense and quick picks.
    */
   public async searchItems(itemType: ContextValue, search: string, _extraParams: any = {}): Promise<NSDatabase.SearchableItem[]> {
+    const db = await this.connection;
+    if (this.credentials.connectionMethod !== 'Profile')
+      var credentials = new Credentials({
+        accessKeyId: this.credentials.accessKeyId,
+        secretAccessKey: this.credentials.secretAccessKey,
+        sessionToken: this.credentials.sessionToken,
+      });
+    else
+      var credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });
+    const glueCon = Promise.resolve(new Glue({
+      credentials: credentials,
+      region: this.credentials.region || 'us-east-1',
+    }));
+    const glue = await glueCon;
+
     switch (itemType) {
+      case ContextValue.DATABASE:
+        const dbOutput: NSDatabase.SearchableItem[] = [];
+        var dbNextToken = 'first';
+        const uniqueDbs = {};
+        
+        while (dbNextToken == 'first' || dbNextToken != null) {
+          const dbParams: AWS.Glue.GetDatabasesRequest = {
+            MaxResults: 100
+          }
+          if (dbNextToken != 'first') {
+            dbParams.NextToken = dbNextToken;
+          }
+          
+          await glue.getDatabases(dbParams, function(err, data) {
+            if (err) console.log(err, err.stack);
+            else {
+              if (data.DatabaseList) {
+                for (const db of data.DatabaseList) {
+                  const dbDetails: NSDatabase.IDatabase = {
+                    database: db.Name,
+                    label: db.Name,
+                    type: itemType,
+                    schema: db.Name
+                  }
+                  uniqueDbs[db.Name] = dbDetails
+                }
+                dbNextToken = data.NextToken;
+              }
+            }
+          }).promise();
+        }
+
+        for (const i in uniqueDbs) {
+          dbOutput.push(uniqueDbs[i])
+        }
+
+        return dbOutput;
+
       case ContextValue.TABLE:
+        const database = _extraParams.database;
+        if (!database) {
+          return [];
+        }
+
+        const tableResults = await this.rawQuery(`SHOW TABLES IN ${database}`);
+        return tableResults[0].ResultSet.Rows
+          .map((row) => ({
+            database: database,
+            label: row.Data[0].VarCharValue,
+            type: itemType,
+            schema: database
+          }));
+
       case ContextValue.VIEW:
+        console.log('view search');
         let j = 0;
         return [{
           database: 'fakedb',
@@ -334,64 +402,45 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
           schema: 'fakeschema',
           childType: ContextValue.COLUMN,
         }]
+        
       case ContextValue.COLUMN:
-        let i = 0;
-        return [
-          {
-            database: 'fakedb',
-            label: `${search || 'porra'}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: 'faketype',
-            schema: 'fakeschema',
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: 'column',
-            table: 'fakeTable'
-          },{
-            database: 'fakedb',
-            label: `${search || 'column'}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: 'faketype',
-            schema: 'fakeschema',
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: 'column',
-            table: 'fakeTable'
-          },{
-            database: 'fakedb',
-            label: `${search || 'column'}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: 'faketype',
-            schema: 'fakeschema',
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: 'column',
-            table: 'fakeTable'
-          },{
-            database: 'fakedb',
-            label: `${search || 'column'}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: 'faketype',
-            schema: 'fakeschema',
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: 'column',
-            table: 'fakeTable'
-          },{
-            database: 'fakedb',
-            label: `${search || 'column'}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: 'faketype',
-            schema: 'fakeschema',
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: 'column',
-            table: 'fakeTable'
-          }
-        ];
+        const tables = _extraParams.tables.filter(t => t.database);
+
+        const columns: NSDatabase.SearchableItem[] = [];
+        for await (const table of tables) {
+          const params: AWS.Athena.GetTableMetadataInput = {
+            CatalogName: 'AwsDataCatalog',
+            DatabaseName: table.database,
+            TableName: table.label
+          };
+
+          await db.getTableMetadata(params, function(err, data) {
+            if (err) {
+              console.log(err);
+            } else {
+              if (data.TableMetadata.Columns) {
+                for (const col of data.TableMetadata.Columns) {
+                  const colDetails: NSDatabase.IColumn = {
+                    database: table.database,
+                    label: col.Name,
+                    type: itemType,
+                    schema: table.database,
+                    dataType: col.Type,
+                    childType: ContextValue.NO_CHILD,
+                    isNullable: true,
+                    iconName: 'column',
+                    table: table.label
+                  }
+                  columns.push(colDetails);
+                }
+              }
+            }
+          }).promise();
+        }
+        return columns;
     }
     return [];
-  }
+}
 
   public getStaticCompletions: IConnectionDriver['getStaticCompletions'] = async () => {
     return {};
