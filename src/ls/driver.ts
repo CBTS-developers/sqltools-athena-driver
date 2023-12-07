@@ -2,8 +2,10 @@ import AbstractDriver from '@sqltools/base-driver';
 import { IConnectionDriver, MConnectionExplorer, NSDatabase, Arg0, ContextValue } from '@sqltools/types';
 import queries from './queries';
 import { v4 as generateId } from 'uuid';
-import { Athena, S3, Credentials, Glue, SharedIniFileCredentials } from 'aws-sdk';
-import { GetQueryResultsInput } from 'aws-sdk/clients/athena';
+import { Athena, AWSError, S3, Credentials, Glue, SharedIniFileCredentials } from 'aws-sdk';
+import { PromiseResult } from 'aws-sdk/lib/request';
+import { GetQueryResultsInput, GetQueryResultsOutput } from 'aws-sdk/clients/athena';
+
 
 export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.ClientConfiguration> implements IConnectionDriver {
 
@@ -52,6 +54,54 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
   public async close() { }
 
   private sleep = (time: number) => new Promise((resolve) => setTimeout(() => resolve(true), time));
+
+  private utilityQuery = async (query: string) => {
+    const db = await this.open();
+
+    const queryExecution = await db.startQueryExecution({
+      QueryString: query,
+      WorkGroup: this.credentials.workgroup,
+      ResultConfiguration: {
+        OutputLocation: this.credentials.outputLocation
+      }
+    }).promise();
+
+    const endStatus = new Set(['FAILED', 'SUCCEEDED', 'CANCELLED']);
+
+    let queryCheckExecution;
+
+    do {
+      queryCheckExecution = await db.getQueryExecution({ 
+        QueryExecutionId: queryExecution.QueryExecutionId,
+      }).promise();
+
+      await this.sleep(200);
+    } while (!endStatus.has(queryCheckExecution.QueryExecution.Status.State))
+
+    if (queryCheckExecution.QueryExecution.Status.State === 'FAILED') {
+      throw new Error(queryCheckExecution.QueryExecution.Status.StateChangeReason)
+    }
+
+    const results: PromiseResult<GetQueryResultsOutput, AWSError>[] = [];
+    let result: PromiseResult<GetQueryResultsOutput, AWSError>;
+    let nextToken: string | null = null;
+
+    do {
+      const payload: GetQueryResultsInput = {
+        QueryExecutionId: queryExecution.QueryExecutionId
+      };
+      if (nextToken) {
+        payload.NextToken = nextToken;
+        await this.sleep(200);
+      }
+      result = await db.getQueryResults(payload).promise();
+      nextToken = result.NextToken;
+      results.push(result);
+    } while (nextToken);
+
+    return results;
+      
+  }
 
   private rawQuery = async (query: string) => {
     const db = await this.open();
@@ -272,8 +322,8 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         }
         return databaseList;
       case ContextValue.TABLE:
-        const tables = await this.rawQuery(`SHOW TABLES IN \`${parent.database}\``);
-        const views = await this.rawQuery(`SHOW VIEWS IN "${parent.database}"`);
+        const tables = await this.utilityQuery(`SHOW TABLES IN \`${parent.database}\``);
+        const views = await this.utilityQuery(`SHOW VIEWS IN "${parent.database}"`);
 
         const viewsSet = new Set(views[0].ResultSet.Rows.map((row) => row.Data[0].VarCharValue));
 
@@ -287,7 +337,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
             childType: ContextValue.COLUMN,
           }));
       case ContextValue.VIEW:
-        const views2 = await this.rawQuery(`SHOW VIEWS IN "${parent.database}"`);
+        const views2 = await this.utilityQuery(`SHOW VIEWS IN "${parent.database}"`);
         
         return views2[0].ResultSet.Rows.map((row) => ({
           database: parent.database,
@@ -364,7 +414,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
           return [];
         }
 
-        const tableResults = await this.rawQuery(`SHOW TABLES IN ${database}`);
+        const tableResults = await this.utilityQuery(`SHOW TABLES IN ${database}`);
         return tableResults[0].ResultSet.Rows
           .map((row) => ({
             database: database,
