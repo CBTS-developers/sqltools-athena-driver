@@ -5,7 +5,7 @@ import { v4 as generateId } from 'uuid';
 import { Athena, AWSError, S3, Credentials, Glue, SharedIniFileCredentials } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { GetQueryResultsInput, GetQueryResultsOutput } from 'aws-sdk/clients/athena';
-
+import Papa from 'papaparse';
 
 export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.ClientConfiguration> implements IConnectionDriver {
 
@@ -170,27 +170,15 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
 
 
     // resultsBase CSV to JSON array
-    let resultsJson = resultsBase.split('\n').map(row => row.split(','));
-    
-    // remove the first row since its a colum header
-    resultsJson.shift();
+    // let resultsJson = resultsBase.split('\n').map(row => row.split(','));
+    let resultsParsed = Papa.parse(resultsBase, { header: true });
+    let resultsJson = resultsParsed.data;
 
     const columns = core_result.ResultSet.ResultSetMetadata.ColumnInfo.map((info) => info.Name);
 
-    const resultSet = [];
-    
-    resultsJson.forEach(row => {
-      let resultToAppend = {}
-      columns.forEach((column, i) => {
-        resultToAppend[column] = row[i];
-      }
-      );
-      resultSet.push(resultToAppend);
-    });
-
     return {
       columns: columns,
-      results: resultSet
+      results: resultsJson
     };
   }
 
