@@ -14,10 +14,11 @@
             "workgroup": "primary",
             "region": "us-east-1",
             "connectionMethod": "Profile",
-            "previewLimit": 50,
+            "previewLimit": 1000,
             "driver": "driver.athena",
             "name": "Athena",
-            "profile": "default_analyst"
+            "profile": ""
         }
     ],
+    "sqltools.disableNodeDetectNotifications": true
 }

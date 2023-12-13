@@ -6,6 +6,11 @@ import { Athena, AWSError, S3, Credentials, Glue, SharedIniFileCredentials } fro
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { GetQueryResultsInput, GetQueryResultsOutput } from 'aws-sdk/clients/athena';
 import Papa from 'papaparse';
+import { SSOOIDCClient, RegisterClientCommand, StartDeviceAuthorizationCommand, CreateTokenCommand, AuthorizationPendingException } from "@aws-sdk/client-sso-oidc";
+import { SSOClient, GetRoleCredentialsCommand } from "@aws-sdk/client-sso"; // ES Modules import
+import { setTimeout as st } from "timers/promises";
+
+const openurl = require("open");
 
 export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.ClientConfiguration> implements IConnectionDriver {
 
@@ -29,19 +34,94 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
   //   return this.requireDep('node-packge-name') as DriverLib;
   // }
 
-  public async open() {
+  private getSSOToken = async(response, start_device_auth_response, sso_oidc_client) => {
+    var token;
+    try {
+        const create_token_input = { // CreateTokenRequest
+            clientId: response.clientId, // required
+            clientSecret: response.clientSecret, // required
+            grantType: "urn:ietf:params:oauth:grant-type:device_code", // required
+            deviceCode: start_device_auth_response.deviceCode,
+          };
+        const create_token_command = new CreateTokenCommand(create_token_input);
+        token = await sso_oidc_client.send(create_token_command);
+    }
+    catch (e) {
+        if (!(e instanceof AuthorizationPendingException)) {
+            throw e;
+        }
+    }
+    return token;
+  }
+
+
+  private browserssooidc = async () => {
+    const sso_client = new SSOClient({ region: this.credentials.region || 'us-east-1' });
+    const sso_oidc_client = new SSOOIDCClient({ region: this.credentials.region || 'us-east-1'  });
+
+    const input = { // RegisterClientRequest
+      clientName: this.credentials.clientType, // required
+      clientType: "public", // required
+    };
+    const command = new RegisterClientCommand(input);
+    const response = await sso_oidc_client.send(command);
+    
+    const start_device_auth_input = { // StartDeviceAuthorizationRequest
+      clientId: response.clientId, // required
+      clientSecret: response.clientSecret, // required
+      startUrl: this.credentials.startUrl, // required
+    };
+    const start_device_auth_command = new StartDeviceAuthorizationCommand(start_device_auth_input);
+    const start_device_auth_response = await sso_oidc_client.send(start_device_auth_command);
+    openurl(start_device_auth_response.verificationUriComplete);
+    
+    var tokenResponse;
+    for (let i = 0; i < start_device_auth_response.expiresIn;) {
+        await st(start_device_auth_response.interval);
+        var newToken = await this.getSSOToken(response, start_device_auth_response, sso_oidc_client);
+        if (newToken) {
+            tokenResponse = newToken;
+            break
+        }
+        i += start_device_auth_response.interval;
+    }
+    
+    
+    const get_role_credentials_input = {
+        roleName: this.credentials.roleName,
+        accountId: this.credentials.accountId,
+        accessToken: tokenResponse.accessToken
+    };
+    const get_role_credentials_command = new GetRoleCredentialsCommand(get_role_credentials_input);
+    const get_role_credentials_response = await sso_client.send(get_role_credentials_command);
+    console.log(get_role_credentials_response.roleCredentials);
+
+    return get_role_credentials_response.roleCredentials;
+      
+  }
+
+  public open = async () => {
     if (this.connection) { 
       return this.connection;
     }
 
-    if (this.credentials.connectionMethod !== 'Profile')
+    if (this.credentials.connectionMethod !== 'Profile') {
       var credentials = new Credentials({
         accessKeyId: this.credentials.accessKeyId,
         secretAccessKey: this.credentials.secretAccessKey,
         sessionToken: this.credentials.sessionToken,
       });
-    else
+    }
+    else if (this.credentials.connectionMethod === 'Browser SSO OIDC') {
+      var token = await this.browserssooidc();
+      var credentials = new Credentials({
+        accessKeyId: token.accessKeyId,
+        secretAccessKey: token.secretAccessKey,
+        sessionToken: token.sessionToken,
+      });
+    } else {
       var credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });
+    }
 
     this.connection = Promise.resolve(new Athena({
       credentials: credentials,

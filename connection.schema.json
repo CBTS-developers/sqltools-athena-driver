@@ -18,8 +18,8 @@
       "title": "Connect using",
       "type": "string",
       "minLength": 1,
-      "enum": ["Profile", "Session Credentials"],
-      "default": "Profile"
+      "enum": ["Profile", "Session Credentials","Browser SSO OIDC"],
+      "default": "Browser SSO OIDC"
     },
     "outputLocation": {
       "title": "S3 Output Location",
@@ -68,7 +68,42 @@
           "required": [
             "workgroup", "accessKeyId", "secretAccessKey", "region"
           ]
+        },
+        {
+          "properties": {
+            "connectionMethod": {
+              "enum": ["Browser SSO OIDC"]
+            },
+            "clientType": {
+              "title": "Client Type",
+              "type": "string",
+              "minLength": 1,
+              "default": "cbtsai-sqltools"
+            },
+            "roleName": {
+              "title": "Role Name",
+              "type": "string",
+              "minLength": 1,
+              "default": "cbtsai-datamesh-engineering-adm"
+            },
+            "accountId": {
+              "title": "Account ID",
+              "type": "string",
+              "minLength": 1,
+              "default": "331755125436"
+            },
+            "startUrl": {
+              "title": "Start URL",
+              "type": "string",
+              "minLength": 1,
+              "default": "https://d-90670336dc.awsapps.com/start"
+            }
+          },
+          "required": [
+            "workgroup", "region", "clientType", "roleName", "accountId", "startUrl"
+          ]
         }
+
       ]
     }
   },
