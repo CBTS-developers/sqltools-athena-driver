@@ -10,8 +10,6 @@ import { SSOOIDCClient, RegisterClientCommand, StartDeviceAuthorizationCommand, 
 import { SSOClient, GetRoleCredentialsCommand } from "@aws-sdk/client-sso"; // ES Modules import
 import { setTimeout as st } from "timers/promises";
 
-const openurl = require("open");
-
 export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.ClientConfiguration> implements IConnectionDriver {
 
   queries = queries
@@ -73,8 +71,14 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     };
     const start_device_auth_command = new StartDeviceAuthorizationCommand(start_device_auth_input);
     const start_device_auth_response = await sso_oidc_client.send(start_device_auth_command);
-    openurl(start_device_auth_response.verificationUriComplete);
     
+    console.log('Starting browser');
+    console.log(start_device_auth_response);
+    const open = (url: string) => import('open').then(({ default: open }) => open(url));
+    open(start_device_auth_response.verificationUriComplete);
+    // open(start_device_auth_response.verificationUriComplete);
+
+    console.log('Waiting for token loop')
     var tokenResponse;
     for (let i = 0; i < start_device_auth_response.expiresIn;) {
         await st(start_device_auth_response.interval);
@@ -102,17 +106,20 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
 
   public open = async () => {
     if (this.connection) { 
+      console.log('Returning existing connection');
       return this.connection;
     }
 
-    if (this.credentials.connectionMethod !== 'Profile') {
+    if (this.credentials.connectionMethod == 'Profile') {
+      console.log('Creating new Profile connection');
       var credentials = new Credentials({
         accessKeyId: this.credentials.accessKeyId,
         secretAccessKey: this.credentials.secretAccessKey,
         sessionToken: this.credentials.sessionToken,
       });
     }
-    else if (this.credentials.connectionMethod === 'Browser SSO OIDC') {
+    else if (this.credentials.connectionMethod == 'Browser SSO OIDC') {
+      console.log('Creating new Browser SSO OIDC connection');
       var token = await this.browserssooidc();
       var credentials = new Credentials({
         accessKeyId: token.accessKeyId,
@@ -120,6 +127,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         sessionToken: token.sessionToken,
       });
     } else {
+      console.log('Creating new Default connection');
       var credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });
     }
 

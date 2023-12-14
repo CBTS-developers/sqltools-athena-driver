@@ -55,7 +55,7 @@
     "papaparse": "^5.3.1",
     "@aws-sdk/client-sso": "^3.470.0",
     "@aws-sdk/client-sso-oidc": "3.470.0",
-    "open": "^9.1.0"    
+    "open": "^9.1.0"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.5.5",
@@ -65,6 +65,5 @@
   },
   "extensionDependencies": [
     "mtxr.sqltools"
-  ],
-  "type": "module"
+  ]
 }
