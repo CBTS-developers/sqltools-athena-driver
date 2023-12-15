@@ -13,8 +13,12 @@
         {
             "workgroup": "primary",
             "region": "us-east-1",
-            "connectionMethod": "Profile",
+            "connectionMethod": "Browser SSO OIDC",
             "previewLimit": 1000,
+            "clientType": "cbtsai-sqltools",
+            "roleName": "cbtsai-datamesh-engineering-adm",
+            "accountId": "331755125436",
+            "startUrl": "https://d-90670336dc.awsapps.com/start",
             "driver": "driver.athena",
             "name": "Athena",
             "profile": ""

@@ -9,6 +9,7 @@ import Papa from 'papaparse';
 import { SSOOIDCClient, RegisterClientCommand, StartDeviceAuthorizationCommand, CreateTokenCommand, AuthorizationPendingException } from "@aws-sdk/client-sso-oidc";
 import { SSOClient, GetRoleCredentialsCommand } from "@aws-sdk/client-sso"; // ES Modules import
 import { setTimeout as st } from "timers/promises";
+// import { default as openu } from 'open';
 
 export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.ClientConfiguration> implements IConnectionDriver {
 
@@ -74,8 +75,12 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     
     console.log('Starting browser');
     console.log(start_device_auth_response);
-    const open = (url: string) => import('open').then(({ default: open }) => open(url));
-    open(start_device_auth_response.verificationUriComplete);
+    
+    // openu(start_device_auth_response.verificationUriComplete);
+    (async () => {
+        const open = (await import('open')).default;
+        open(start_device_auth_response.verificationUriComplete);
+    })();    
     // open(start_device_auth_response.verificationUriComplete);
 
     console.log('Waiting for token loop')
@@ -230,6 +235,18 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
 
     const bucket = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/')[2];
     const key = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/').slice(3).join('/');
+
+    console.log(bucket);
+    console.log(key);
+    console.log({ 
+      apiVersion: '2006-03-01', 
+      region: this.credentials.region || 'us-east-1', 
+      credentials: new Credentials({
+        accessKeyId: this.credentials.accessKeyId,
+        secretAccessKey: this.credentials.secretAccessKey,
+        sessionToken: this.credentials.sessionToken,
+      })
+    });
   
     const s3 = new S3({ 
       apiVersion: '2006-03-01', 
@@ -255,6 +272,8 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         }
       });
     });
+
+    console.log(resultsBase);
 
 
     // resultsBase CSV to JSON array
