@@ -110,7 +110,6 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
   public open = async () => {
     if (this.connection) { 
       console.log('Returning existing connection');
-      console.log(this.connection);
       return this.connection;
     }
 
@@ -237,12 +236,6 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     const bucket = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/')[2];
     const key = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/').slice(3).join('/');
 
-    console.log({ 
-      apiVersion: '2006-03-01', 
-      region: this.credentials.region || 'us-east-1', 
-      credentials: (await this.connection).config.credentials
-    });
-  
     const s3 = new S3({ 
       apiVersion: '2006-03-01', 
       region: this.credentials.region || 'us-east-1', 
@@ -263,8 +256,6 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         }
       });
     });
-
-    console.log(resultsBase);
 
 
     // resultsBase CSV to JSON array
