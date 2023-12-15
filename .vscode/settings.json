@@ -9,20 +9,6 @@
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
     "typescript.tsc.autoDetect": "off",
     "debug.onTaskErrors": "debugAnyway",
-    "sqltools.connections": [
-        {
-            "workgroup": "primary",
-            "region": "us-east-1",
-            "connectionMethod": "Browser SSO OIDC",
-            "previewLimit": 1000,
-            "clientType": "cbtsai-sqltools",
-            "roleName": "cbtsai-datamesh-engineering-adm",
-            "accountId": "331755125436",
-            "startUrl": "https://d-90670336dc.awsapps.com/start",
-            "driver": "driver.athena",
-            "name": "Athena",
-            "profile": ""
-        }
-    ],
+    "sqltools.connections": [],
     "sqltools.disableNodeDetectNotifications": true
 }
