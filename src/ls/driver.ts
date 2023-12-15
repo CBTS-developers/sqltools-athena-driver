@@ -236,6 +236,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     const bucket = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/')[2];
     const key = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/').slice(3).join('/');
 
+    console.log(`Before downloading timestamp ${new Date().getTime()}`);
     const s3 = new S3({ 
       apiVersion: '2006-03-01', 
       region: this.credentials.region || 'us-east-1', 
@@ -256,14 +257,13 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         }
       });
     });
-
-
-    // resultsBase CSV to JSON array
-    // let resultsJson = resultsBase.split('\n').map(row => row.split(','));
     let resultsParsed = Papa.parse(resultsBase, { header: true });
+
     let resultsJson = resultsParsed.data;
 
+    console.log(`Before column mappings timestamp ${new Date().getTime()}`);
     const columns = core_result.ResultSet.ResultSetMetadata.ColumnInfo.map((info) => info.Name);
+    console.log(`After column mappings timestamp ${new Date().getTime()}`);
 
     return {
       columns: columns,
@@ -432,14 +432,18 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
    */
   public async searchItems(itemType: ContextValue, search: string, _extraParams: any = {}): Promise<NSDatabase.SearchableItem[]> {
     const db = await this.connection;
-    if (this.credentials.connectionMethod !== 'Profile')
-      var credentials = new Credentials({
+    var credentials;
+    if (this.credentials.connectionMethod == 'Profile') {
+      credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });
+    } else if (this.credentials.connectionMethod == 'Browser SSO OIDC') {
+      credentials = (await this.connection).config.credentials;
+    } else {
+      credentials = new Credentials({
         accessKeyId: this.credentials.accessKeyId,
         secretAccessKey: this.credentials.secretAccessKey,
         sessionToken: this.credentials.sessionToken,
       });
-    else
-      var credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });
+    }
     const glueCon = Promise.resolve(new Glue({
       credentials: credentials,
       region: this.credentials.region || 'us-east-1',
