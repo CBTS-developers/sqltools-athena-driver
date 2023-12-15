@@ -84,7 +84,7 @@
               "title": "Role Name",
               "type": "string",
               "minLength": 1,
-              "default": "cbtsai-datamesh-engineering-adm"
+              "default": "cbtsai-datamesh-analyst-admin"
             },
             "accountId": {
               "title": "Account ID",

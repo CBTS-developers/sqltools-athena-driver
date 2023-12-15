@@ -9,6 +9,7 @@ import Papa from 'papaparse';
 import { SSOOIDCClient, RegisterClientCommand, StartDeviceAuthorizationCommand, CreateTokenCommand, AuthorizationPendingException } from "@aws-sdk/client-sso-oidc";
 import { SSOClient, GetRoleCredentialsCommand } from "@aws-sdk/client-sso"; // ES Modules import
 import { setTimeout as st } from "timers/promises";
+// const st = require('timers-promises')
 // import { default as openu } from 'open';
 
 export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.ClientConfiguration> implements IConnectionDriver {
