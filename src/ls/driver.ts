@@ -74,7 +74,6 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     const start_device_auth_response = await sso_oidc_client.send(start_device_auth_command);
     
     console.log('Starting browser');
-    console.log(start_device_auth_response);
     
     // openu(start_device_auth_response.verificationUriComplete);
     (async () => {
@@ -103,7 +102,6 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     };
     const get_role_credentials_command = new GetRoleCredentialsCommand(get_role_credentials_input);
     const get_role_credentials_response = await sso_client.send(get_role_credentials_command);
-    console.log(get_role_credentials_response.roleCredentials);
 
     return get_role_credentials_response.roleCredentials;
       
@@ -112,6 +110,7 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
   public open = async () => {
     if (this.connection) { 
       console.log('Returning existing connection');
+      console.log(this.connection);
       return this.connection;
     }
 
@@ -126,6 +125,8 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     else if (this.credentials.connectionMethod == 'Browser SSO OIDC') {
       console.log('Creating new Browser SSO OIDC connection');
       var token = await this.browserssooidc();
+      console.log('token from browserssooidc');
+      console.log(token)
       var credentials = new Credentials({
         accessKeyId: token.accessKeyId,
         secretAccessKey: token.secretAccessKey,
@@ -236,26 +237,16 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     const bucket = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/')[2];
     const key = queryCheckExecution.QueryExecution.ResultConfiguration.OutputLocation.split('/').slice(3).join('/');
 
-    console.log(bucket);
-    console.log(key);
     console.log({ 
       apiVersion: '2006-03-01', 
       region: this.credentials.region || 'us-east-1', 
-      credentials: new Credentials({
-        accessKeyId: this.credentials.accessKeyId,
-        secretAccessKey: this.credentials.secretAccessKey,
-        sessionToken: this.credentials.sessionToken,
-      })
+      credentials: (await this.connection).config.credentials
     });
   
     const s3 = new S3({ 
       apiVersion: '2006-03-01', 
       region: this.credentials.region || 'us-east-1', 
-      credentials: new Credentials({
-        accessKeyId: this.credentials.accessKeyId,
-        secretAccessKey: this.credentials.secretAccessKey,
-        sessionToken: this.credentials.sessionToken,
-      })
+      credentials: (await this.connection).config.credentials
     });
 
     let resultsBase: String = await new Promise((resolve, reject) => {
