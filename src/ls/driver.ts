@@ -115,12 +115,8 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
     }
 
     if (this.credentials.connectionMethod == 'Profile') {
-      console.log('Creating new Profile connection');
-      var credentials = new Credentials({
-        accessKeyId: this.credentials.accessKeyId,
-        secretAccessKey: this.credentials.secretAccessKey,
-        sessionToken: this.credentials.sessionToken,
-      });
+      console.log('Creating new profile connection');
+      var credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });      
     }
     else if (this.credentials.connectionMethod == 'Browser SSO OIDC') {
       console.log('Creating new Browser SSO OIDC connection');
@@ -133,8 +129,12 @@ export default class AthenaDriver extends AbstractDriver<Athena, Athena.Types.Cl
         sessionToken: token.sessionToken,
       });
     } else {
-      console.log('Creating new Default connection');
-      var credentials = new SharedIniFileCredentials({ profile: this.credentials.profile });
+      console.log('Creating new default connection');
+      var credentials = new Credentials({
+        accessKeyId: this.credentials.accessKeyId,
+        secretAccessKey: this.credentials.secretAccessKey,
+        sessionToken: this.credentials.sessionToken,
+      });
     }
 
     this.connection = Promise.resolve(new Athena({
